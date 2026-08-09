@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production
+.env.production.local
+apps/*/.env
+apps/*/.env.local
+apps/*/.env.production
+apps/*/.env.production.local
+
+# Production backups (never commit)
+backups/
+backups/**
+*.sql.gz
+
+# Build
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Coverage / test
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
+
+# Misc
+*.pem
+.turbo/
+.cache/
+
+# Local Vapi provisioning state (IDs only; never commit secrets)
+.vapi/

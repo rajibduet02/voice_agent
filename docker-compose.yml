@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: voice-agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: voice_agent
+    ports:
+      # Host 5432 is often occupied by a local Postgres install on Windows.
+      # Container still listens on 5432 internally; map host 5433 by default.
+      - "5433:5432"
+    volumes:
+      - voice_agent_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d voice_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  voice_agent_pgdata:

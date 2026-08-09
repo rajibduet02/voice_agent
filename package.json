@@ -1,0 +1,47 @@
+{
+  "name": "voice-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web-based Vapi voice appointment-booking platform",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run start:dev -w @voice-agent/api",
+    "dev:web": "npm run dev -w @voice-agent/web",
+    "build": "npm run build -w @voice-agent/api && npm run build -w @voice-agent/web",
+    "lint": "npm run lint -w @voice-agent/api && npm run lint -w @voice-agent/web",
+    "test": "npm run test -w @voice-agent/api && npm run test -w @voice-agent/web",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate -w @voice-agent/api",
+    "db:generate": "npm run prisma:generate -w @voice-agent/api",
+    "db:seed": "npm run prisma:seed -w @voice-agent/api",
+    "db:studio": "npm run prisma:studio -w @voice-agent/api",
+    "vapi:setup": "npm run vapi:setup -w @voice-agent/api",
+    "vapi:setup:web-env": "npm run vapi:setup:web-env -w @voice-agent/api",
+    "vapi:verify": "npm run vapi:verify -w @voice-agent/api",
+    "availability:audit": "npm run availability:audit -w @voice-agent/api --",
+    "availability:next": "npm run availability:next -w @voice-agent/api --",
+    "time:context": "npm run time:context -w @voice-agent/api --",
+    "date:resolve": "npm run date:resolve -w @voice-agent/api --",
+    "vapi:test-tools": "npm run vapi:test-tools -w @voice-agent/api --",
+    "production:build": "docker compose --env-file .env.production -f compose.production.yml build",
+    "production:up": "docker compose --env-file .env.production -f compose.production.yml up -d",
+    "production:down": "docker compose --env-file .env.production -f compose.production.yml down",
+    "production:logs": "docker compose --env-file .env.production -f compose.production.yml logs -f --tail=200",
+    "production:status": "docker compose --env-file .env.production -f compose.production.yml ps",
+    "production:migrate": "docker compose --env-file .env.production -f compose.production.yml run --rm --no-deps api npx prisma migrate deploy",
+    "production:restart": "docker compose --env-file .env.production -f compose.production.yml up -d --force-recreate api web caddy",
+    "production:deploy": "bash scripts/deploy-production.sh",
+    "production:seed:demo": "bash scripts/seed-production-demo.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.5.3"
+  }
+}

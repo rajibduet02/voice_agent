@@ -1,0 +1,14 @@
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCallList": [
+      {
+        "id": "tool-call-2",
+        "function": {
+          "name": "book_appointment",
+          "arguments": "{\"organizationSlug\":\"carepoint-clinic\",\"locationId\":\"00000000-0000-4000-8000-000000000001\",\"providerId\":\"00000000-0000-4000-8000-000000000002\",\"serviceId\":\"00000000-0000-4000-8000-000000000003\",\"scheduledStart\":\"2026-08-12T04:00:00.000Z\",\"timezone\":\"Asia/Dhaka\",\"customerName\":\"John Doe\",\"customerPhone\":\"+8801700000000\",\"reason\":\"General consultation\",\"externalRequestId\":\"voice-req-1\"}"
+        }
+      }
+    ]
+  }
+}

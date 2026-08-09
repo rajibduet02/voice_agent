@@ -1,0 +1,22 @@
+{
+  "message": {
+    "type": "tool-calls",
+    "toolCallList": [
+      {
+        "id": "tool-call-1",
+        "type": "function",
+        "function": {
+          "name": "check_appointment_availability",
+          "arguments": {
+            "organizationSlug": "carepoint-clinic",
+            "serviceName": "General Consultation",
+            "preferredProviderName": "Dr. Sarah Khan",
+            "date": "2026-08-12",
+            "timePreference": "morning",
+            "timezone": "Asia/Dhaka"
+          }
+        }
+      }
+    ]
+  }
+}

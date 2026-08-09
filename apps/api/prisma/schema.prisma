@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Industry {
+  HEALTHCARE
+  DENTAL
+  THERAPY
+  BEAUTY
+  CONSULTING
+  OTHER
+}
+
+enum ProviderType {
+  DOCTOR
+  DENTIST
+  THERAPIST
+  CONSULTANT
+  STYLIST
+  OTHER
+}
+
+enum ExceptionType {
+  UNAVAILABLE
+  CUSTOM_HOURS
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum AppointmentSource {
+  VOICE
+  WEB
+  ADMIN
+}
+
+enum VoiceCallStatus {
+  STARTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model Organization {
+  id                  String   @id @default(uuid()) @db.Uuid
+  name                String
+  slug                String   @unique
+  industry            Industry
+  timezone            String
+  phone               String?
+  email               String?
+  slotIntervalMinutes Int      @default(15)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  locations    Location[]
+  providers    Provider[]
+  services     Service[]
+  customers    Customer[]
+  appointments Appointment[]
+  voiceCalls   VoiceCall[]
+}
+
+model Location {
+  id            String   @id @default(uuid()) @db.Uuid
+  organizationId String  @db.Uuid
+  name          String
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  stateOrRegion String?
+  postalCode    String?
+  countryCode   String
+  timezone      String
+  phone         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  defaultForProviders   Provider[]             @relation("ProviderDefaultLocation")
+  availabilityRules     AvailabilityRule[]
+  availabilityExceptions AvailabilityException[]
+  appointments          Appointment[]
+
+  @@index([organizationId])
+}
+
+model Provider {
+  id                String       @id @default(uuid()) @db.Uuid
+  organizationId    String       @db.Uuid
+  defaultLocationId String?      @db.Uuid
+  name              String
+  providerType      ProviderType
+  specialty         String?
+  qualifications    String?
+  licenseNumber     String?
+  biography         String?
+  timezone          String
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  defaultLocation        Location?               @relation("ProviderDefaultLocation", fields: [defaultLocationId], references: [id], onDelete: SetNull)
+  providerServices       ProviderService[]
+  availabilityRules      AvailabilityRule[]
+  availabilityExceptions AvailabilityException[]
+  appointments           Appointment[]
+
+  @@index([organizationId])
+  @@index([defaultLocationId])
+}
+
+model Service {
+  id                  String   @id @default(uuid()) @db.Uuid
+  organizationId      String   @db.Uuid
+  name                String
+  slug                String
+  description         String?
+  durationMinutes     Int
+  bufferBeforeMinutes Int      @default(0)
+  bufferAfterMinutes  Int      @default(0)
+  price               Decimal? @db.Decimal(10, 2)
+  currency            String   @default("USD")
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  providerServices ProviderService[]
+  appointments     Appointment[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+}
+
+model ProviderService {
+  id                     String   @id @default(uuid()) @db.Uuid
+  providerId             String   @db.Uuid
+  serviceId              String   @db.Uuid
+  customDurationMinutes  Int?
+  customPrice            Decimal? @db.Decimal(10, 2)
+  isActive               Boolean  @default(true)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, serviceId])
+  @@index([serviceId])
+}
+
+model Customer {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @db.Uuid
+  name            String
+  phone           String
+  normalizedPhone String
+  email           String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([organizationId, normalizedPhone])
+  @@index([organizationId, email])
+}
+
+model AvailabilityRule {
+  id             String    @id @default(uuid()) @db.Uuid
+  providerId     String    @db.Uuid
+  locationId     String?   @db.Uuid
+  /// Application weekday: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+  dayOfWeek      Int
+  startTime      String
+  endTime        String
+  timezone       String
+  effectiveFrom  DateTime? @db.Date
+  effectiveUntil DateTime? @db.Date
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  provider Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([providerId, dayOfWeek])
+  @@index([locationId])
+}
+
+model AvailabilityException {
+  id            String        @id @default(uuid()) @db.Uuid
+  providerId    String        @db.Uuid
+  locationId    String?       @db.Uuid
+  date          DateTime      @db.Date
+  exceptionType ExceptionType
+  startTime     String?
+  endTime       String?
+  reason        String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  provider Provider  @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  location Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  @@index([providerId, date])
+  @@index([locationId])
+}
+
+model Appointment {
+  id                 String            @id @default(uuid()) @db.Uuid
+  organizationId     String            @db.Uuid
+  locationId         String            @db.Uuid
+  providerId         String            @db.Uuid
+  serviceId          String            @db.Uuid
+  customerId         String            @db.Uuid
+  confirmationCode   String            @unique
+  externalRequestId  String?           @unique
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  timezone           String
+  status             AppointmentStatus @default(CONFIRMED)
+  source             AppointmentSource
+  reason             String?
+  internalNotes      String?
+  cancellationReason String?
+  cancelledAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  location     Location     @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  provider     Provider     @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  service      Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([providerId, scheduledStart])
+  @@index([customerId, scheduledStart])
+  @@index([organizationId, scheduledStart])
+  @@index([status])
+}
+
+model VoiceCall {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String?         @db.Uuid
+  vapiCallId     String          @unique
+  status         VoiceCallStatus
+  customerPhone  String?
+  transcript     String?
+  summary        String?
+  endedReason    String?
+  startedAt      DateTime?
+  endedAt        DateTime?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([status])
+}

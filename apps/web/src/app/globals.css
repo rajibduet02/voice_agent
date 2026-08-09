@@ -1,0 +1,297 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #f3f7f5;
+  --foreground: #12201a;
+  --card: #ffffff;
+  --card-foreground: #12201a;
+  --primary: #0f6a4d;
+  --primary-foreground: #f7fffb;
+  --secondary: #2f7a6d;
+  --secondary-foreground: #f7fffb;
+  --muted: #e7f0ea;
+  --muted-foreground: #4d6358;
+  --border: #d5e2db;
+  --success: #1f7a4c;
+  --warning: #a16207;
+  --destructive: #b42318;
+  --ring: #0f6a4d;
+  --elevated: #f8fbf9;
+  --hero-glow: rgba(15, 106, 77, 0.12);
+  --shadow: 0 10px 30px rgba(18, 32, 26, 0.08);
+}
+
+.dark {
+  --background: #101613;
+  --foreground: #eef5f1;
+  --card: #18211d;
+  --card-foreground: #eef5f1;
+  --primary: #7dccad;
+  --primary-foreground: #0c1914;
+  --secondary: #4d9e90;
+  --secondary-foreground: #07110e;
+  --muted: #24302b;
+  --muted-foreground: #a8b8b0;
+  --border: #2d3b35;
+  --success: #5ecf95;
+  --warning: #e2b255;
+  --destructive: #f07167;
+  --ring: #7dccad;
+  --elevated: #1f2a25;
+  --hero-glow: rgba(125, 204, 173, 0.12);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-destructive: var(--destructive);
+  --color-ring: var(--ring);
+  --color-elevated: var(--elevated);
+  --font-sans: "Segoe UI", "Avenir Next", "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at top left, var(--hero-glow), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(47, 122, 109, 0.08), transparent 36%),
+    var(--background);
+  font-family: var(--font-sans);
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0;
+  }
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.voice-pulse::before,
+.voice-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--primary) 55%, transparent);
+  animation: pulse-ring 1.8s ease-out infinite;
+}
+
+.voice-pulse::after {
+  animation-delay: 0.55s;
+}
+
+.wave-bar {
+  animation: wave 1s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+/* FullCalendar theme integration (scoped) */
+.appointment-calendar {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: var(--muted);
+  --fc-neutral-text-color: var(--muted-foreground);
+  --fc-list-event-hover-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in srgb, var(--primary) 12%, transparent);
+  --fc-button-bg-color: var(--card);
+  --fc-button-border-color: var(--border);
+  --fc-button-text-color: var(--foreground);
+  --fc-button-hover-bg-color: var(--muted);
+  --fc-button-hover-border-color: var(--border);
+  --fc-button-active-bg-color: color-mix(in srgb, var(--primary) 18%, var(--card));
+  --fc-button-active-border-color: var(--primary);
+  --fc-button-active-text-color: var(--primary);
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: var(--foreground);
+  --fc-event-bg-color: color-mix(in srgb, var(--primary) 18%, transparent);
+  min-width: 0;
+}
+
+.appointment-calendar .fc {
+  font-family: var(--font-sans);
+  color: var(--foreground);
+}
+
+.appointment-calendar .fc .fc-toolbar {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.appointment-calendar .fc .fc-toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.appointment-calendar .fc .fc-button {
+  border-radius: 0.75rem;
+  font-weight: 600;
+  text-transform: none;
+  box-shadow: none;
+}
+
+.appointment-calendar .fc .fc-button:focus {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.appointment-calendar .fc .fc-col-header-cell,
+.appointment-calendar .fc .fc-daygrid-day,
+.appointment-calendar .fc .fc-timegrid-slot,
+.appointment-calendar .fc .fc-list-day-cushion {
+  background: transparent;
+}
+
+.appointment-calendar .fc .fc-scrollgrid,
+.appointment-calendar .fc .fc-theme-standard td,
+.appointment-calendar .fc .fc-theme-standard th {
+  border-color: var(--border);
+}
+
+.appointment-calendar .fc .fc-daygrid-event,
+.appointment-calendar .fc .fc-timegrid-event,
+.appointment-calendar .fc .fc-list-event {
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.appointment-calendar .fc .fc-event:hover,
+.appointment-calendar .fc .fc-event:focus-visible {
+  filter: brightness(1.03);
+}
+
+.appointment-calendar .fc-event-status-pending {
+  background: color-mix(in srgb, var(--warning) 22%, transparent) !important;
+  color: var(--foreground) !important;
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent) !important;
+}
+
+.appointment-calendar .fc-event-status-confirmed {
+  background: color-mix(in srgb, var(--success) 22%, transparent) !important;
+  color: var(--foreground) !important;
+  border-color: color-mix(in srgb, var(--success) 45%, transparent) !important;
+}
+
+.appointment-calendar .fc-event-status-cancelled {
+  background: color-mix(in srgb, var(--destructive) 20%, transparent) !important;
+  color: var(--foreground) !important;
+  border-color: color-mix(in srgb, var(--destructive) 45%, transparent) !important;
+}
+
+.appointment-calendar .fc-event-status-completed {
+  background: color-mix(in srgb, var(--primary) 20%, transparent) !important;
+  color: var(--foreground) !important;
+  border-color: color-mix(in srgb, var(--primary) 45%, transparent) !important;
+}
+
+.appointment-calendar .fc-event-status-no-show {
+  background: color-mix(in srgb, var(--destructive) 10%, var(--muted)) !important;
+  color: var(--muted-foreground) !important;
+  border-color: color-mix(in srgb, var(--destructive) 30%, var(--border)) !important;
+}
+
+.appointment-calendar .fc .fc-popover {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--foreground);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 767px) {
+  .appointment-calendar .fc .fc-toolbar.fc-header-toolbar {
+    margin-bottom: 0.75rem;
+  }
+
+  .appointment-calendar .fc .fc-button {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appointment-calendar .fc .fc-event {
+    transition: none;
+  }
+}
