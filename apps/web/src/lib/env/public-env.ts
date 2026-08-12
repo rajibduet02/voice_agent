@@ -1,27 +1,39 @@
 /**
  * Browser-safe environment values.
- * NEXT_PUBLIC_* references must remain static for Next.js inlining.
+ * NEXT_PUBLIC_* references MUST stay statically analyzable for Next.js inlining.
+ * Do not use process.env[name] or other dynamic lookup.
  */
 
 function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '');
 }
 
-const rawApiUrl = process.env.NEXT_PUBLIC_API_URL ?? '';
+/** Build identifier embedded in source to confirm the deployed bundle. */
+export const APP_BUILD_TARGET = 'carepoint-web';
 
 export const publicEnv = {
-  apiUrl: rawApiUrl ? stripTrailingSlash(rawApiUrl.trim()) : '',
+  apiUrl: process.env.NEXT_PUBLIC_API_URL ?? '',
   organizationSlug:
-    (process.env.NEXT_PUBLIC_ORGANIZATION_SLUG ?? 'carepoint-clinic').trim() ||
-    'carepoint-clinic',
-  vapiPublicKey: (process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? '').trim(),
-  vapiAssistantId: (process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID ?? '').trim(),
-} as const;
+    process.env.NEXT_PUBLIC_ORGANIZATION_SLUG ?? 'carepoint-clinic',
+  vapiPublicKey: process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? '',
+  vapiAssistantId: process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID ?? '',
+};
+
+export function getNormalizedPublicEnv() {
+  const apiUrlRaw = publicEnv.apiUrl.trim();
+  return {
+    apiUrl: apiUrlRaw ? stripTrailingSlash(apiUrlRaw) : '',
+    organizationSlug: publicEnv.organizationSlug.trim() || 'carepoint-clinic',
+    vapiPublicKey: publicEnv.vapiPublicKey.trim(),
+    vapiAssistantId: publicEnv.vapiAssistantId.trim(),
+  };
+}
 
 export function isVapiConfigured(): boolean {
-  return Boolean(publicEnv.vapiPublicKey) && Boolean(publicEnv.vapiAssistantId);
+  const { vapiPublicKey, vapiAssistantId } = getNormalizedPublicEnv();
+  return vapiPublicKey.length > 0 && vapiAssistantId.length > 0;
 }
 
 export function isPublicApiUrlConfigured(): boolean {
-  return Boolean(publicEnv.apiUrl);
+  return getNormalizedPublicEnv().apiUrl.length > 0;
 }

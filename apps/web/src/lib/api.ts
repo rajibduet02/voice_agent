@@ -1,9 +1,9 @@
-import { publicEnv } from '@/lib/env/public-env';
+import { getNormalizedPublicEnv } from '@/lib/env/public-env';
 
-export const ORGANIZATION_SLUG = publicEnv.organizationSlug;
+export const ORGANIZATION_SLUG = getNormalizedPublicEnv().organizationSlug;
 
 function getApiBaseUrl(): string {
-  return publicEnv.apiUrl;
+  return getNormalizedPublicEnv().apiUrl;
 }
 
 export type Service = {

@@ -10,7 +10,9 @@ import { StatusBadge } from '@/components/ui/badge';
 import { StatusIndicator } from '@/components/voice/status-indicator';
 import { Transcript, TranscriptItem } from '@/components/voice/transcript';
 import { VoiceVisualizer, VoiceVisualStatus } from '@/components/voice/voice-visualizer';
-import { isVapiConfigured, publicEnv } from '@/lib/env/public-env';
+import { APP_BUILD_TARGET, getNormalizedPublicEnv } from '@/lib/env/public-env';
+import { getPublicEnvDebugInfo } from '@/lib/env/public-env-debug';
+import { sanitizeError } from '@/lib/env/sanitize-error';
 
 type CallStatus = VoiceVisualStatus;
 
@@ -22,11 +24,12 @@ type VapiMessageEvent = {
   message?: string;
 };
 
-const publicKey = publicEnv.vapiPublicKey;
-const assistantId = publicEnv.vapiAssistantId;
-
-function getConfigurationMessage(): string | null {
-  if (isVapiConfigured()) {
+function getConfigurationMessage(
+  vapiPublicKey: string,
+  vapiAssistantId: string,
+): string | null {
+  const isConfigured = vapiPublicKey.length > 0 && vapiAssistantId.length > 0;
+  if (isConfigured) {
     return null;
   }
 
@@ -34,8 +37,8 @@ function getConfigurationMessage(): string | null {
     return 'Voice assistant is temporarily unavailable.';
   }
 
-  const missingPublicKey = !publicKey;
-  const missingAssistantId = !assistantId;
+  const missingPublicKey = vapiPublicKey.length === 0;
+  const missingAssistantId = vapiAssistantId.length === 0;
 
   if (missingPublicKey && missingAssistantId) {
     return 'Vapi is not configured. NEXT_PUBLIC_VAPI_PUBLIC_KEY and NEXT_PUBLIC_VAPI_ASSISTANT_ID are missing. For local development set them in apps/web/.env, then restart the frontend. For deployments set them in the hosting provider environment variables and redeploy.';
@@ -60,40 +63,105 @@ export function VoiceAgent() {
   const [micPermission, setMicPermission] = useState('Not checked');
   const [interimTranscript, setInterimTranscript] = useState('');
   const [messages, setMessages] = useState<TranscriptItem[]>([]);
-  const configurationMessage = getConfigurationMessage();
-  const configured = configurationMessage === null;
+
+  // Explicit static NEXT_PUBLIC reads for configuration checks (via publicEnv module).
+  const normalized = getNormalizedPublicEnv();
+  const vapiPublicKey = normalized.vapiPublicKey;
+  const vapiAssistantId = normalized.vapiAssistantId;
+  const isConfigured = vapiPublicKey.length > 0 && vapiAssistantId.length > 0;
+  const configurationMessage = getConfigurationMessage(vapiPublicKey, vapiAssistantId);
   const callActive =
     status === 'Connecting' || status === 'Listening' || status === 'Assistant speaking';
 
   useEffect(() => {
-    if (!configured) {
+    const debug = getPublicEnvDebugInfo();
+    console.group('[CarePoint Voice Debug] Environment');
+    console.table(debug);
+    console.log(
+      '[CarePoint Voice Debug] Vapi configured:',
+      debug.vapiPublicKeyConfigured && debug.vapiAssistantIdConfigured,
+    );
+    console.log('[CarePoint Voice Debug] Build target:', APP_BUILD_TARGET);
+    console.log('[CarePoint Voice Debug] configuration check', {
+      publicKeyPresent: vapiPublicKey.length > 0,
+      publicKeyLength: vapiPublicKey.length,
+      assistantIdPresent: vapiAssistantId.length > 0,
+      assistantIdLength: vapiAssistantId.length,
+    });
+    console.groupEnd();
+  }, [vapiPublicKey.length, vapiAssistantId.length]);
+
+  useEffect(() => {
+    if (!isConfigured) {
+      console.error(
+        '[CarePoint Voice Debug] Skipping Vapi init: configuration incomplete',
+        {
+          publicKeyPresent: vapiPublicKey.length > 0,
+          assistantIdPresent: vapiAssistantId.length > 0,
+        },
+      );
       return;
     }
 
-    const vapi = new Vapi(publicKey);
-    vapiRef.current = vapi;
+    console.log('[CarePoint Voice Debug] Initializing Vapi SDK');
+    console.log('[CarePoint Voice Debug] Vapi init prerequisites', {
+      publicKeyPresent: Boolean(vapiPublicKey),
+      assistantIdPresent: Boolean(vapiAssistantId),
+      secureContext: typeof window !== 'undefined' ? window.isSecureContext : null,
+      origin: typeof window !== 'undefined' ? window.location.origin : null,
+      mediaDevicesAvailable:
+        typeof navigator !== 'undefined' ? Boolean(navigator.mediaDevices) : null,
+      getUserMediaAvailable:
+        typeof navigator !== 'undefined'
+          ? Boolean(navigator.mediaDevices?.getUserMedia)
+          : null,
+    });
+
+    let vapi: Vapi;
+    try {
+      vapi = new Vapi(vapiPublicKey);
+      vapiRef.current = vapi;
+      console.log('[CarePoint Voice Debug] Vapi SDK initialized successfully');
+    } catch (initError) {
+      console.error(
+        '[CarePoint Voice Debug] Vapi SDK initialization failed',
+        sanitizeError(initError),
+      );
+      setError('Unable to initialize the voice assistant.');
+      setStatus('Error');
+      return;
+    }
 
     const onCallStart = () => {
+      console.log('[CarePoint Voice Debug] Event: call-start');
       setStatus('Listening');
       setError(null);
     };
     const onCallEnd = () => {
+      console.log('[CarePoint Voice Debug] Event: call-end');
       setStatus('Call ended');
       setInterimTranscript('');
     };
-    const onSpeechStart = () => setStatus('Assistant speaking');
-    const onSpeechEnd = () => setStatus('Listening');
+    const onSpeechStart = () => {
+      console.log('[CarePoint Voice Debug] Event: speech-start');
+      setStatus('Assistant speaking');
+    };
+    const onSpeechEnd = () => {
+      console.log('[CarePoint Voice Debug] Event: speech-end');
+      setStatus('Listening');
+    };
     const onError = (err: unknown) => {
-      const message =
-        err instanceof Error
-          ? err.message
-          : typeof err === 'string'
-            ? err
-            : 'Voice assistant error';
-      setError(message);
+      console.error('[CarePoint Voice Debug] Event: error', sanitizeError(err));
+      const safe = sanitizeError(err);
+      setError(safe.message || 'Voice assistant error');
       setStatus('Error');
     };
     const onMessage = (message: VapiMessageEvent) => {
+      console.log('[CarePoint Voice Debug] Event: message', {
+        type: message?.type,
+        role: message?.role,
+      });
+
       if (message.type !== 'transcript') {
         return;
       }
@@ -140,27 +208,84 @@ export function VoiceAgent() {
       void vapi.stop();
       vapiRef.current = null;
     };
-  }, [configured]);
+  }, [isConfigured, vapiPublicKey, vapiAssistantId]);
 
   async function ensureMicrophone() {
     if (!navigator.mediaDevices?.getUserMedia) {
+      console.error(
+        '[CarePoint Voice Debug] navigator.mediaDevices.getUserMedia unavailable',
+      );
       setMicPermission('Microphone API unavailable in this browser');
       throw new Error('Microphone access is not available in this browser.');
+    }
+
+    if (typeof navigator !== 'undefined' && 'permissions' in navigator) {
+      console.log('[CarePoint Voice Debug] navigator.permissions available: true');
+    } else {
+      console.log('[CarePoint Voice Debug] navigator.permissions available: false');
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
       setMicPermission('Granted');
-    } catch {
+    } catch (micError) {
+      console.error(
+        '[CarePoint Voice Debug] Microphone permission failed',
+        sanitizeError(micError),
+      );
       setMicPermission('Denied');
       throw new Error('Microphone permission is required to start the voice assistant.');
     }
   }
 
   async function startCall() {
-    if (!configured || !vapiRef.current) {
-      setError('Vapi is not configured. Add the public key and assistant ID.');
+    console.group('[CarePoint Voice Debug] Start Conversation');
+    console.log('Configuration', {
+      publicKeyPresent: Boolean(vapiPublicKey),
+      assistantIdPresent: Boolean(vapiAssistantId),
+      vapiInstancePresent: Boolean(vapiRef.current),
+      secureContext: window.isSecureContext,
+      origin: window.location.origin,
+      microphoneApiAvailable: Boolean(navigator.mediaDevices?.getUserMedia),
+    });
+
+    if (!vapiPublicKey) {
+      console.error(
+        '[CarePoint Voice Debug] Start blocked: public key missing from browser build',
+      );
+      console.groupEnd();
+      setError('Unable to start the voice conversation.');
+      setStatus('Error');
+      return;
+    }
+
+    if (!vapiAssistantId) {
+      console.error(
+        '[CarePoint Voice Debug] Start blocked: assistant ID missing from browser build',
+      );
+      console.groupEnd();
+      setError('Unable to start the voice conversation.');
+      setStatus('Error');
+      return;
+    }
+
+    if (!vapiRef.current) {
+      console.error(
+        '[CarePoint Voice Debug] Start blocked: Vapi instance not initialized',
+      );
+      console.groupEnd();
+      setError('Unable to start the voice conversation.');
+      setStatus('Error');
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      console.error(
+        '[CarePoint Voice Debug] Start blocked: browser is not using a secure context',
+      );
+      console.groupEnd();
+      setError('Unable to start the voice conversation.');
       setStatus('Error');
       return;
     }
@@ -187,14 +312,30 @@ export function VoiceAgent() {
         assistantOverrides = undefined;
       }
 
-      await vapiRef.current.start(assistantId, assistantOverrides);
+      console.log('[CarePoint Voice Debug] Calling vapi.start()', {
+        assistantIdPresent: true,
+        assistantIdLength: vapiAssistantId.length,
+        assistantIdSuffix: vapiAssistantId.slice(-6),
+      });
+
+      const call = await vapiRef.current.start(vapiAssistantId, assistantOverrides);
+      console.log('[CarePoint Voice Debug] vapi.start() resolved', {
+        callCreated: Boolean(call),
+      });
+      console.groupEnd();
     } catch (err) {
+      console.error(
+        '[CarePoint Voice Debug] vapi.start() rejected',
+        sanitizeError(err),
+      );
+      console.groupEnd();
       setStatus('Error');
-      setError(err instanceof Error ? err.message : 'Unable to start the call');
+      setError('Unable to start the voice conversation.');
     }
   }
 
   function endCall() {
+    console.log('[CarePoint Voice Debug] End Conversation requested');
     vapiRef.current?.stop();
     setStatus('Call ended');
     setInterimTranscript('');
@@ -232,7 +373,7 @@ export function VoiceAgent() {
             <StatusBadge status={status} />
           </CardHeader>
 
-          {!configured && configurationMessage ? (
+          {!isConfigured && configurationMessage ? (
             <div className="mt-4 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
               {configurationMessage} Manual booking still works without these values.
             </div>
@@ -244,7 +385,7 @@ export function VoiceAgent() {
             <Button
               size="lg"
               onClick={() => void startCall()}
-              disabled={!configured || callActive}
+              disabled={!isConfigured || callActive}
               aria-label="Start conversation"
             >
               Start Conversation
