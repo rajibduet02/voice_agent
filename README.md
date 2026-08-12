@@ -78,7 +78,7 @@ MINIMUM_BOOKING_LEAD_MINUTES=30
 - Appointments are stored in UTC and displayed in the organization timezone.
 - After changing Vapi tools or the system prompt, rerun `npm run vapi:setup`.
 
-### Frontend (`apps/web/.env` or `.env.local`)
+### Frontend (`apps/web/.env`)
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
@@ -86,15 +86,18 @@ NEXT_PUBLIC_ORGANIZATION_SLUG=carepoint-clinic
 NEXT_PUBLIC_VAPI_PUBLIC_KEY=
 NEXT_PUBLIC_VAPI_ASSISTANT_ID=
 APPOINTMENT_TRACKING_API_KEY=replace-with-a-long-random-secret
+INTERNAL_API_URL=http://localhost:4000
 ```
 
-Also set the same tracking key on the API:
+Use the **same** `APPOINTMENT_TRACKING_API_KEY` in `apps/api/.env` and `apps/web/.env`. Never prefix it with `NEXT_PUBLIC_`. The browser never receives this value.
 
-```env
-APPOINTMENT_TRACKING_API_KEY=replace-with-a-long-random-secret
+Local development uses `apps/web/.env` (not a required `.env.local`). Deployed environments use the hosting provider’s environment variables — see [docs/vercel-environment.md](docs/vercel-environment.md).
+
+Verify configuration presence without printing secrets:
+
+```bash
+npm run env:check
 ```
-
-Use the **same** secret in `apps/api/.env` and `apps/web/.env.local`. Never prefix it with `NEXT_PUBLIC_`. The browser never receives this value.
 
 The web app loads even when Vapi public values are empty; the voice card shows a configuration message and disables Start Conversation until both are set.
 
@@ -160,7 +163,7 @@ Security flow:
 
 Local setup:
 
-1. Put the same long random secret in `apps/api/.env` and `apps/web/.env.local` as `APPOINTMENT_TRACKING_API_KEY`.
+1. Put the same long random secret in `apps/api/.env` and `apps/web/.env` as `APPOINTMENT_TRACKING_API_KEY`.
 2. Start Postgres, migrate/seed if needed, then run `npm run dev`.
 3. Open http://localhost:3000/appointments.
 
@@ -178,7 +181,8 @@ Local setup:
 | `npm run db:seed` | Idempotent seed |
 | `npm run db:studio` | Prisma Studio |
 | `npm run vapi:setup` | Create/update Vapi assistant + tools |
-| `npm run vapi:setup:web-env` | Provision and write assistant ID to `apps/web/.env.local` |
+| `npm run vapi:setup:web-env` | Provision and write assistant ID to `apps/web/.env` |
+| `npm run env:check` | Report env variable presence (never prints secrets) |
 | `npm run vapi:verify` | Verify assistant/tools/URLs without changes |
 | `npm run time:context -- --organization=carepoint-clinic` | Print authoritative org local date/time |
 | `npm run date:resolve -- --organization=carepoint-clinic --expression="tomorrow"` | Resolve a relative date via backend services |
@@ -208,7 +212,7 @@ High level:
 4. Set `PUBLIC_API_URL` to that HTTPS tunnel URL.
 5. Create a Vapi Bearer custom credential whose secret matches `VAPI_WEBHOOK_SECRET`, then set `VAPI_CREDENTIAL_ID`.
 6. Run `npm run vapi:setup:web-env`.
-7. Add `NEXT_PUBLIC_VAPI_PUBLIC_KEY` manually to `apps/web/.env.local`.
+7. Add `NEXT_PUBLIC_VAPI_PUBLIC_KEY` manually to `apps/web/.env`.
 8. Restart the frontend and test voice booking.
 
 If the tunnel URL changes, update `PUBLIC_API_URL` and rerun `npm run vapi:setup`.
@@ -316,3 +320,4 @@ Only Caddy publishes ports 80/443. PostgreSQL and app ports stay private.
 - [API overview](docs/api.md)
 - [Vapi setup](docs/vapi-setup.md)
 - [Production deployment](docs/production-deployment.md)
+- [Vercel environment variables](docs/vercel-environment.md)

@@ -107,6 +107,26 @@ export function validateEnv(config: Record<string, unknown>) {
     throw new Error(`Environment validation failed: ${messages}`);
   }
 
+  const nodeEnv = validated.NODE_ENV ?? 'development';
+  if (validated.FRONTEND_URL) {
+    validated.FRONTEND_URL = stripTrailingSlash(validated.FRONTEND_URL);
+  }
+  if (validated.PUBLIC_API_URL) {
+    validated.PUBLIC_API_URL = stripTrailingSlash(validated.PUBLIC_API_URL);
+  }
+
+  if (nodeEnv === 'production') {
+    if (!validated.FRONTEND_URL.startsWith('https://')) {
+      throw new Error('FRONTEND_URL must use HTTPS in production');
+    }
+    if (
+      validated.PUBLIC_API_URL &&
+      !validated.PUBLIC_API_URL.startsWith('https://')
+    ) {
+      throw new Error('PUBLIC_API_URL must use HTTPS in production');
+    }
+  }
+
   return validated;
 }
 

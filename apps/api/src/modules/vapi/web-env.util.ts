@@ -4,14 +4,15 @@ import path from 'path';
 const ASSISTANT_ID_KEY = 'NEXT_PUBLIC_VAPI_ASSISTANT_ID';
 
 /**
- * Safely upserts only NEXT_PUBLIC_VAPI_ASSISTANT_ID in apps/web/.env.local.
+ * Safely upserts only NEXT_PUBLIC_VAPI_ASSISTANT_ID in apps/web/.env.
+ * Preserves existing keys (including NEXT_PUBLIC_VAPI_PUBLIC_KEY).
  * Never writes private keys or unrelated secrets.
  */
-export async function writeWebAssistantId(
+export async function writeWebEnv(
   repoRoot: string,
   assistantId: string,
 ): Promise<string> {
-  const envPath = path.join(repoRoot, 'apps', 'web', '.env.local');
+  const envPath = path.join(repoRoot, 'apps', 'web', '.env');
   let existing = '';
   try {
     existing = await readFile(envPath, 'utf8');
@@ -36,9 +37,16 @@ export async function writeWebAssistantId(
     nextLines.push(`${ASSISTANT_ID_KEY}=${assistantId}`);
   }
 
-  // Preserve trailing newline style without wiping blank final line intentionally.
   const content = `${nextLines.join('\n').replace(/\n+$/, '')}\n`;
   await mkdir(path.dirname(envPath), { recursive: true });
   await writeFile(envPath, content, 'utf8');
   return envPath;
+}
+
+/** @deprecated Use writeWebEnv — retained as a thin alias for older imports. */
+export async function writeWebAssistantId(
+  repoRoot: string,
+  assistantId: string,
+): Promise<string> {
+  return writeWebEnv(repoRoot, assistantId);
 }

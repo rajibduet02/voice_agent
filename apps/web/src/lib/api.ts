@@ -1,6 +1,10 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-export const ORGANIZATION_SLUG =
-  process.env.NEXT_PUBLIC_ORGANIZATION_SLUG ?? 'carepoint-clinic';
+import { publicEnv } from '@/lib/env/public-env';
+
+export const ORGANIZATION_SLUG = publicEnv.organizationSlug;
+
+function getApiBaseUrl(): string {
+  return publicEnv.apiUrl;
+}
 
 export type Service = {
   id: string;
@@ -102,14 +106,34 @@ export type ServicesResponse = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    cache: 'no-store',
-  });
+  const apiUrl = getApiBaseUrl();
+  if (!apiUrl) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        '[api] NEXT_PUBLIC_API_URL is not configured. Set it in apps/web/.env for local development, or in the hosting provider env for deployments.',
+      );
+    }
+    throw new Error('Unable to load appointment services. Please try again.');
+  }
+
+  const url = `${apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers ?? {}),
+      },
+      cache: 'no-store',
+    });
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[api] Network request failed', { url, error });
+    }
+    throw new Error('Unable to load appointment services. Please try again.');
+  }
 
   const body = (await response.json().catch(() => ({}))) as {
     message?: string | string[];
@@ -120,6 +144,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const message = Array.isArray(body.message)
       ? body.message.join(', ')
       : body.message || body.error || `Request failed (${response.status})`;
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[api] Upstream error', { url, status: response.status, message });
+    }
     throw new Error(message);
   }
 
@@ -138,13 +165,16 @@ export const api = {
     );
   },
 
-  getAvailability(params: {
-    serviceId: string;
-    locationId: string;
-    providerId?: string;
-    date: string;
-    timezone?: string;
-  }, organizationSlug = ORGANIZATION_SLUG) {
+  getAvailability(
+    params: {
+      serviceId: string;
+      locationId: string;
+      providerId?: string;
+      date: string;
+      timezone?: string;
+    },
+    organizationSlug = ORGANIZATION_SLUG,
+  ) {
     const search = new URLSearchParams({
       serviceId: params.serviceId,
       locationId: params.locationId,

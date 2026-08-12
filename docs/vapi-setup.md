@@ -28,7 +28,7 @@ Never paste the private key into chat, commits, frontend env files, or logs.
 npm run vapi:setup:web-env
 ```
 
-8. Add `NEXT_PUBLIC_VAPI_PUBLIC_KEY` manually to `apps/web/.env.local`.
+8. Add `NEXT_PUBLIC_VAPI_PUBLIC_KEY` manually to `apps/web/.env`.
 9. Restart the frontend.
 10. Test a voice appointment at http://localhost:3000.
 
@@ -103,7 +103,7 @@ Notes:
 - Production provisioning requires `VAPI_CREDENTIAL_ID` and HTTPS.
 - HTTP `PUBLIC_API_URL` requires `ALLOW_INSECURE_PUBLIC_API_URL=true` in development, and also `ALLOW_INSECURE_VAPI_CREDENTIAL_TRANSPORT=true` when a credential ID is configured.
 
-### Frontend (`apps/web/.env.local`)
+### Frontend (`apps/web/.env`)
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:4000
@@ -112,14 +112,14 @@ NEXT_PUBLIC_VAPI_PUBLIC_KEY=
 NEXT_PUBLIC_VAPI_ASSISTANT_ID=
 ```
 
-Never place `VAPI_PRIVATE_KEY` in Next.js env files.
+Never place `VAPI_PRIVATE_KEY` in Next.js env files. Local development standardizes on `apps/web/.env` (not a required `.env.local`). Deployed environments use the hosting provider dashboard — see [vercel-environment.md](./vercel-environment.md).
 
 ## Commands
 
 | Command | Purpose |
 |---------|---------|
 | `npm run vapi:setup` | Create/update assistant + tools idempotently |
-| `npm run vapi:setup:web-env` | Same, and write `NEXT_PUBLIC_VAPI_ASSISTANT_ID` to `apps/web/.env.local` |
+| `npm run vapi:setup:web-env` | Same, and write `NEXT_PUBLIC_VAPI_ASSISTANT_ID` to `apps/web/.env` |
 | `npm run vapi:verify` | Verify assistant/tools/URLs without modifying resources |
 
 After setup, the CLI prints:

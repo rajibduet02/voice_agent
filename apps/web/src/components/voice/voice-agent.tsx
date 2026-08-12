@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/ui/badge';
 import { StatusIndicator } from '@/components/voice/status-indicator';
 import { Transcript, TranscriptItem } from '@/components/voice/transcript';
 import { VoiceVisualizer, VoiceVisualStatus } from '@/components/voice/voice-visualizer';
+import { isVapiConfigured, publicEnv } from '@/lib/env/public-env';
 
 type CallStatus = VoiceVisualStatus;
 
@@ -21,23 +22,28 @@ type VapiMessageEvent = {
   message?: string;
 };
 
-const publicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY ?? '';
-const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID ?? '';
+const publicKey = publicEnv.vapiPublicKey;
+const assistantId = publicEnv.vapiAssistantId;
 
 function getConfigurationMessage(): string | null {
-  const missingPublicKey = !publicKey.trim();
-  const missingAssistantId = !assistantId.trim();
+  if (isVapiConfigured()) {
+    return null;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return 'Voice assistant is temporarily unavailable.';
+  }
+
+  const missingPublicKey = !publicKey;
+  const missingAssistantId = !assistantId;
 
   if (missingPublicKey && missingAssistantId) {
-    return 'Vapi is not configured. Set NEXT_PUBLIC_VAPI_PUBLIC_KEY and NEXT_PUBLIC_VAPI_ASSISTANT_ID in apps/web/.env.local, then restart the frontend. Run npm run vapi:setup:web-env after tunnel/API setup to generate the assistant ID.';
+    return 'Vapi is not configured. NEXT_PUBLIC_VAPI_PUBLIC_KEY and NEXT_PUBLIC_VAPI_ASSISTANT_ID are missing. For local development set them in apps/web/.env, then restart the frontend. For deployments set them in the hosting provider environment variables and redeploy.';
   }
   if (missingPublicKey) {
-    return 'Missing NEXT_PUBLIC_VAPI_PUBLIC_KEY. Add your Vapi public key to apps/web/.env.local (never use the private key in the frontend), then restart the frontend.';
+    return 'NEXT_PUBLIC_VAPI_PUBLIC_KEY is not configured. For local development set it in apps/web/.env (never use the private key in the frontend). For deployments configure the hosting provider environment variables and redeploy.';
   }
-  if (missingAssistantId) {
-    return 'Missing NEXT_PUBLIC_VAPI_ASSISTANT_ID. Run npm run vapi:setup:web-env after configuring PUBLIC_API_URL, or paste the assistant ID into apps/web/.env.local, then restart the frontend.';
-  }
-  return null;
+  return 'NEXT_PUBLIC_VAPI_ASSISTANT_ID is not configured. For local development run npm run vapi:setup:web-env or set it in apps/web/.env. For deployments configure the hosting provider environment variables and redeploy.';
 }
 
 function formatTime(date = new Date()) {

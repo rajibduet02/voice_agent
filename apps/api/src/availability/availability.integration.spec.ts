@@ -9,6 +9,8 @@ import { getApplicationDayOfWeek, zonedLocalToUtc } from '../common/utils/time.u
 describe('AvailabilityService CarePoint seed integration', () => {
   const prisma = new PrismaClient();
   const service = new AvailabilityService(prisma as unknown as PrismaService);
+  // Freeze "now" before seeded Aug 2026 slots so lead-time filtering does not empty results.
+  const referenceNow = new Date('2026-08-08T13:25:00.000Z');
 
   let serviceId = '';
   let locationId = '';
@@ -45,6 +47,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       locationId,
       date: '2026-08-10',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
     expect(slots.length).toBeGreaterThan(0);
     expect(slots.every((slot) => slot.providerName === 'Dr. Sarah Khan')).toBe(true);
@@ -60,6 +63,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       locationId,
       date: '2026-08-09',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
     const sundayMorning = service.filterSlotsByTimePreference(
       sunday,
@@ -75,6 +79,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       locationId,
       date: '2026-08-10',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
     const mondayAny = service.filterSlotsByTimePreference(monday, 'any', 'Asia/Dhaka');
     // 15-min interval, 30-min duration: 15 morning + 11 afternoon = 26 when unconflicted.
@@ -88,6 +93,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       locationId,
       date: '2026-08-14',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
     expect(friday).toHaveLength(0);
 
@@ -97,6 +103,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       locationId,
       date: '2026-08-15',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
     expect(saturday).toHaveLength(0);
 
@@ -106,6 +113,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       locationId,
       date: '2026-08-09',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
     const evening = service.filterSlotsByTimePreference(sunday, 'evening', 'Asia/Dhaka');
     expect(evening).toHaveLength(0);
@@ -139,6 +147,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
       providerId,
       date: '2026-08-10',
       timezone: 'Asia/Dhaka',
+      now: referenceNow,
     });
 
     const starts = monday.map((slot) => slot.displayStart.slice(11, 16));
@@ -193,6 +202,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
         providerId,
         date: '2026-08-10',
         timezone: 'Asia/Dhaka',
+        now: referenceNow,
       });
       expect(
         withConflict.some((slot) => slot.startTime === start.toISOString()),
@@ -210,6 +220,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
         providerId,
         date: '2026-08-10',
         timezone: 'Asia/Dhaka',
+        now: referenceNow,
       });
       expect(afterCancel.some((slot) => slot.startTime === start.toISOString())).toBe(true);
 
@@ -224,6 +235,7 @@ describe('AvailabilityService CarePoint seed integration', () => {
         providerId,
         date: '2026-08-10',
         timezone: 'Asia/Dhaka',
+        now: referenceNow,
       });
       expect(
         afterCompleted.some((slot) => slot.startTime === start.toISOString()),

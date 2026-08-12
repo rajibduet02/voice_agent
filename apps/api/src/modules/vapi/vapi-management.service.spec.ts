@@ -10,7 +10,7 @@ import {
   VAPI_STABLE_ASSISTANT_NAME,
   VAPI_STABLE_TOOL_NAMES,
 } from './vapi-assistant.config';
-import { writeWebAssistantId } from './web-env.util';
+import { writeWebEnv } from './web-env.util';
 
 type MockResponse = {
   status: number;
@@ -556,22 +556,25 @@ describe('Vapi provisioning', () => {
     });
   });
 
-  it('safely updates NEXT_PUBLIC_VAPI_ASSISTANT_ID without modifying other values', async () => {
+  it('safely updates NEXT_PUBLIC_VAPI_ASSISTANT_ID in apps/web/.env without modifying other values', async () => {
     const webDir = path.join(repoRoot, 'apps', 'web');
     mkdirSync(webDir, { recursive: true });
     writeFileSync(
-      path.join(webDir, '.env.local'),
+      path.join(webDir, '.env'),
       'NEXT_PUBLIC_API_URL=http://localhost:4000\nNEXT_PUBLIC_VAPI_PUBLIC_KEY=pk_test\nNEXT_PUBLIC_VAPI_ASSISTANT_ID=old\n',
       'utf8',
     );
 
-    await writeWebAssistantId(repoRoot, 'asst-new');
+    const envPath = await writeWebEnv(repoRoot, 'asst-new');
+    expect(envPath.endsWith(path.join('apps', 'web', '.env'))).toBe(true);
 
-    const content = readFileSync(path.join(webDir, '.env.local'), 'utf8');
+    const content = readFileSync(path.join(webDir, '.env'), 'utf8');
     expect(content).toContain('NEXT_PUBLIC_API_URL=http://localhost:4000');
     expect(content).toContain('NEXT_PUBLIC_VAPI_PUBLIC_KEY=pk_test');
     expect(content).toContain('NEXT_PUBLIC_VAPI_ASSISTANT_ID=asst-new');
     expect(content).not.toContain(privateKey);
     expect(content).not.toContain('VAPI_PRIVATE_KEY');
+    expect(content).not.toContain('VAPI_WEBHOOK_SECRET');
+    expect(content).not.toContain('DATABASE_URL');
   });
 });

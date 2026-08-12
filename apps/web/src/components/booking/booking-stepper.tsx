@@ -64,7 +64,10 @@ export function BookingStepper() {
       } catch (error) {
         if (cancelled) return;
         setServicesState('error');
-        setServicesError(error instanceof Error ? error.message : 'Failed to load services');
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[book] Failed to load services', error);
+        }
+        setServicesError('Unable to load appointment services. Please try again.');
       }
     })();
     return () => {

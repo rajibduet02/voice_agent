@@ -5,15 +5,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { buildCorsSettings } from './config/cors.config';
+import { readAppEnv } from './config/env';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
-  const frontendUrl =
-    configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+  const env = readAppEnv(configService);
 
-  // Safe behind Caddy / reverse proxies (correct proto and client IP).
+  // Safe behind reverse proxies (correct proto and client IP).
   const httpAdapter = app.getHttpAdapter();
   if (httpAdapter.getType() === 'express') {
     httpAdapter.getInstance().set('trust proxy', 1);
@@ -21,22 +21,13 @@ async function bootstrap() {
 
   app.use(helmet());
 
-  if (nodeEnv === 'production') {
-    app.enableCors({
-      origin: frontendUrl,
-      credentials: true,
-    });
-  } else {
-    const devOrigins = new Set<string>([
-      frontendUrl,
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ]);
-    app.enableCors({
-      origin: [...devOrigins],
-      credentials: true,
-    });
-  }
+  const cors = buildCorsSettings(env.nodeEnv, env.frontendUrl);
+  app.enableCors(cors);
+  console.log(
+    `CORS origin configured: ${
+      Array.isArray(cors.origin) ? cors.origin.join(', ') : cors.origin
+    }`,
+  );
 
   app.setGlobalPrefix('api/v1', {
     exclude: ['health'],
@@ -61,11 +52,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document);
 
-  const port = configService.get<number>('PORT') ?? 4000;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(env.port, '0.0.0.0');
   // Binding on 0.0.0.0 does not prove a public IP/firewall path is reachable.
-  console.log(`API listening. Local: http://localhost:${port}`);
-  console.log(`API network binding: http://0.0.0.0:${port}`);
+  console.log(`API listening. Local: http://localhost:${env.port}`);
+  console.log(`API network binding: http://0.0.0.0:${env.port}`);
 }
 
 void bootstrap();

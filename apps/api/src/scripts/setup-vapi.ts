@@ -2,13 +2,13 @@ import { validateProvisioningEnv } from '../config/env.validation';
 import { VapiHttpClient } from '../modules/vapi/vapi-http.client';
 import { VapiManagementService } from '../modules/vapi/vapi-management.service';
 import { loadApiEnvFile, resolveRepoRoot } from '../modules/vapi/load-api-env';
-import { writeWebAssistantId } from '../modules/vapi/web-env.util';
+import { writeWebEnv as writeWebEnvFile } from '../modules/vapi/web-env.util';
 
 async function main() {
   const repoRoot = resolveRepoRoot();
   loadApiEnvFile(repoRoot);
 
-  const writeWebEnv = process.argv.includes('--write-web-env');
+  const shouldWriteWebEnv = process.argv.includes('--write-web-env');
   const env = validateProvisioningEnv(process.env as Record<string, unknown>);
   for (const warning of env.warnings) {
     console.warn(warning);
@@ -49,16 +49,17 @@ async function main() {
   console.log('');
   console.log(`VAPI ASSISTANT ID: ${result.assistantId}`);
   console.log('');
-  console.log('Add this line to apps/web/.env.local:');
+  console.log('Add this line to apps/web/.env (local) or your web hosting env (deployed):');
   console.log(`NEXT_PUBLIC_VAPI_ASSISTANT_ID=${result.assistantId}`);
   console.log('');
   console.log(
-    'Also set NEXT_PUBLIC_VAPI_PUBLIC_KEY manually in apps/web/.env.local (public key only).',
+    'Also set NEXT_PUBLIC_VAPI_PUBLIC_KEY manually (public key only). For local development use apps/web/.env.',
   );
 
-  if (writeWebEnv) {
-    const envPath = await writeWebAssistantId(repoRoot, result.assistantId);
-    console.log(`Updated ${envPath} with NEXT_PUBLIC_VAPI_ASSISTANT_ID.`);
+  if (shouldWriteWebEnv) {
+    const envPath = await writeWebEnvFile(repoRoot, result.assistantId);
+    console.log(`Updated ${envPath}:`);
+    console.log(`NEXT_PUBLIC_VAPI_ASSISTANT_ID=${result.assistantId}`);
   }
 }
 

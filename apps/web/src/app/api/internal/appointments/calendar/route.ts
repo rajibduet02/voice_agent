@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { serverEnv } from '@/lib/env/server-env';
 
 const ALLOWED_PARAMS = [
   'start',
@@ -23,23 +24,29 @@ function configurationError(message: string, status = 503) {
 }
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.APPOINTMENT_TRACKING_API_KEY?.trim();
+  const apiKey = serverEnv.appointmentTrackingApiKey;
   if (!apiKey) {
     return configurationError(
-      'Appointment tracking is not configured. Set APPOINTMENT_TRACKING_API_KEY in apps/web/.env.local (server-only) to the same value as apps/api/.env.',
+      process.env.NODE_ENV === 'production'
+        ? 'Appointment tracking is not configured.'
+        : 'Appointment tracking is not configured. Set APPOINTMENT_TRACKING_API_KEY in apps/web/.env (server-only) to the same value as apps/api/.env.',
+      500,
     );
   }
 
-  // Prefer INTERNAL_API_URL in Docker (http://api:4000) to avoid public hairpin NAT.
-  const apiBase = (
-    process.env.INTERNAL_API_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    'http://localhost:4000'
-  ).replace(/\/+$/, '');
+  const apiBase = serverEnv.backendBaseUrl;
+  if (!apiBase) {
+    return configurationError(
+      process.env.NODE_ENV === 'production'
+        ? 'Appointment tracking backend is not configured.'
+        : 'Backend API URL is not configured. Set INTERNAL_API_URL or NEXT_PUBLIC_API_URL.',
+      500,
+    );
+  }
+
   const organizationSlug =
     request.nextUrl.searchParams.get('organizationSlug')?.trim() ||
-    process.env.NEXT_PUBLIC_ORGANIZATION_SLUG ||
-    'carepoint-clinic';
+    serverEnv.organizationSlug;
 
   const start = request.nextUrl.searchParams.get('start');
   const end = request.nextUrl.searchParams.get('end');
@@ -76,18 +83,22 @@ export async function GET(request: NextRequest) {
     const body = (await upstream.json().catch(() => ({}))) as Record<string, unknown>;
 
     if (!upstream.ok) {
+      if (upstream.status === 401 || upstream.status === 403) {
+        return NextResponse.json(
+          {
+            error: 'authorization_failed',
+            message:
+              'Appointment tracking authorization failed. Confirm APPOINTMENT_TRACKING_API_KEY matches in the web and API hosting environments.',
+          },
+          { status: 502 },
+        );
+      }
+
       const message =
         (typeof body.message === 'string' && body.message) ||
         (Array.isArray(body.message) && body.message.join(', ')) ||
         (typeof body.error === 'string' && body.error) ||
         `Calendar request failed (${upstream.status})`;
-
-      if (upstream.status === 401 || upstream.status === 403) {
-        return configurationError(
-          'Appointment tracking authorization failed. Confirm APPOINTMENT_TRACKING_API_KEY matches in apps/api/.env and apps/web/.env.local.',
-          401,
-        );
-      }
 
       return NextResponse.json(
         {
@@ -105,11 +116,14 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'no-store',
       },
     });
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[calendar-proxy] Backend unavailable', error);
+    }
     return NextResponse.json(
       {
         error: 'backend_unavailable',
-        message: 'The appointment API is unavailable. Confirm the NestJS API is running.',
+        message: 'The appointment API is unavailable.',
       },
       { status: 503 },
     );

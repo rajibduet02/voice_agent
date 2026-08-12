@@ -24,7 +24,8 @@
     "availability:next": "ts-node --project tsconfig.json src/scripts/availability-next.ts",
     "time:context": "ts-node --project tsconfig.json src/scripts/time-context.ts",
     "date:resolve": "ts-node --project tsconfig.json src/scripts/date-resolve.ts",
-    "vapi:test-tools": "ts-node --project tsconfig.json src/scripts/vapi-test-tools.ts"
+    "vapi:test-tools": "ts-node --project tsconfig.json src/scripts/vapi-test-tools.ts",
+    "env:check": "tsx src/scripts/env-check.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.12",
