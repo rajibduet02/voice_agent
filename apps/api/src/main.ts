@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { buildCorsSettings } from './config/cors.config';
+import { buildCorsSettings, normalizeFrontendUrl } from './config/cors.config';
 import { readAppEnv } from './config/env';
 
 async function bootstrap() {
@@ -19,15 +19,28 @@ async function bootstrap() {
     httpAdapter.getInstance().set('trust proxy', 1);
   }
 
-  app.use(helmet());
-
-  const cors = buildCorsSettings(env.nodeEnv, env.frontendUrl);
-  app.enableCors(cors);
-  console.log(
-    `CORS origin configured: ${
-      Array.isArray(cors.origin) ? cors.origin.join(', ') : cors.origin
-    }`,
+  // Allow cross-origin browser clients to read JSON API responses.
+  // Helmet's default CORP "same-origin" is too strict for a public REST API.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
   );
+
+  const frontendUrl = normalizeFrontendUrl(env.frontendUrl);
+  const cors = buildCorsSettings(env.nodeEnv, frontendUrl);
+  app.enableCors(cors);
+
+  const frontendConfigured = frontendUrl.length > 0;
+  console.log('[CORS] NODE_ENV:', env.nodeEnv);
+  console.log('[CORS] FRONTEND_URL configured:', frontendConfigured);
+  if (frontendConfigured) {
+    console.log('[CORS] Allowed frontend origin:', frontendUrl);
+  } else {
+    console.error(
+      '[CORS] FRONTEND_URL is missing. Browser requests from the Next.js app will fail CORS checks.',
+    );
+  }
 
   app.setGlobalPrefix('api/v1', {
     exclude: ['health'],

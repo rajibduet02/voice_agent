@@ -2,17 +2,20 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppointmentStatus, PrismaClient } from '@prisma/client';
+import helmet from 'helmet';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { dayOfWeekInTimeZone, zonedLocalToUtc } from '../src/common/utils/time.util';
+import { buildCorsSettings } from '../src/config/cors.config';
 
 describe('Appointment platform (e2e)', () => {
   let app: INestApplication<App>;
   const prisma = new PrismaClient();
   const orgSlug = 'carepoint-clinic';
   const webhookSecret = process.env.VAPI_WEBHOOK_SECRET ?? 'test-secret';
+  const productionFrontendOrigin = 'https://voice-agent-web-lac.vercel.app';
   let trackingApiKey = 'e2e-appointment-tracking-secret';
 
   let locationId: string;
@@ -23,7 +26,7 @@ describe('Appointment platform (e2e)', () => {
   beforeAll(async () => {
     process.env.NODE_ENV = 'test';
     process.env.PORT = process.env.PORT ?? '4000';
-    process.env.FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:3000';
+    process.env.FRONTEND_URL = productionFrontendOrigin;
     process.env.VAPI_WEBHOOK_SECRET = webhookSecret;
     process.env.APPOINTMENT_TRACKING_API_KEY = trackingApiKey;
     if (!process.env.DATABASE_URL) {
@@ -36,6 +39,12 @@ describe('Appointment platform (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.use(
+      helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+      }),
+    );
+    app.enableCors(buildCorsSettings('production', productionFrontendOrigin));
     app.setGlobalPrefix('api/v1', { exclude: ['health'] });
     app.useGlobalPipes(
       new ValidationPipe({
@@ -90,6 +99,50 @@ describe('Appointment platform (e2e)', () => {
     const response = await request(app.getHttpServer()).get('/health').expect(200);
     expect(response.body.database).toBe('up');
     expect(response.body.status).toBe('ok');
+  });
+
+  it('allows the production frontend origin on public services', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/public/${orgSlug}/services`)
+      .set('Origin', productionFrontendOrigin)
+      .expect(200);
+
+    expect(response.body.services?.length).toBeGreaterThan(0);
+    expect(response.headers['access-control-allow-origin']).toBe(
+      productionFrontendOrigin,
+    );
+  });
+
+  it('does not allow an unrelated origin in production', async () => {
+    const response = await request(app.getHttpServer())
+      .get(`/api/v1/public/${orgSlug}/services`)
+      .set('Origin', 'https://malicious-example.com')
+      .expect(200);
+
+    expect(response.body.services?.length).toBeGreaterThan(0);
+    expect(response.headers['access-control-allow-origin']).not.toBe(
+      'https://malicious-example.com',
+    );
+    expect(response.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('answers CORS preflight for the production frontend origin', async () => {
+    const response = await request(app.getHttpServer())
+      .options(`/api/v1/public/${orgSlug}/services`)
+      .set('Origin', productionFrontendOrigin)
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'content-type')
+      .expect(204);
+
+    expect(response.headers['access-control-allow-origin']).toBe(
+      productionFrontendOrigin,
+    );
+    expect(String(response.headers['access-control-allow-methods'] ?? '')).toMatch(
+      /GET/i,
+    );
+    expect(String(response.headers['access-control-allow-headers'] ?? '')).toMatch(
+      /content-type/i,
+    );
   });
 
   it('returns available slots with a lunch break gap', async () => {

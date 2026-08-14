@@ -15,14 +15,36 @@ export class AppointmentTrackingAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
     const header = request.headers.authorization;
-    if (!header || !header.startsWith('Bearer ')) {
+    const receivedBearer = Boolean(header && header.startsWith('Bearer '));
+
+    // Prefer process.env directly so hosting-provider values are authoritative.
+    const expected = (
+      process.env.APPOINTMENT_TRACKING_API_KEY ??
+      this.configService.get<string>('APPOINTMENT_TRACKING_API_KEY') ??
+      ''
+    ).trim();
+    const configured = expected.length > 0;
+
+    if (!receivedBearer) {
+      console.log('[Appointment Tracking Auth]', {
+        configured,
+        receivedBearer: false,
+        authorized: false,
+      });
       throw new UnauthorizedException('Missing or invalid Authorization header');
     }
 
-    const token = header.slice('Bearer '.length).trim();
-    const expected = this.configService.get<string>('APPOINTMENT_TRACKING_API_KEY') ?? '';
+    const token = header!.slice('Bearer '.length).trim();
+    const authorized = configured && this.secretsMatch(token, expected);
 
-    if (!expected || !this.secretsMatch(token, expected)) {
+    console.log('[Appointment Tracking Auth]', {
+      configured,
+      receivedBearer: true,
+      authorized,
+    });
+
+    // Do NOT log expected or received tokens.
+    if (!authorized) {
       throw new UnauthorizedException('Invalid appointment tracking API key');
     }
 

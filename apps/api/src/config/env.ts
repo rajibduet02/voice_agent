@@ -32,7 +32,7 @@ export function readAppEnv(config: ConfigService): AppEnv {
     port: Number.isFinite(port) ? port : 4000,
     databaseUrl: config.get<string>('DATABASE_URL') ?? '',
     frontendUrl: stripTrailingSlash(
-      config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
+      (config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000').trim(),
     ),
     publicApiUrl: publicApiUrl ? stripTrailingSlash(publicApiUrl) : undefined,
     vapiPrivateKey: config.get<string>('VAPI_PRIVATE_KEY') || undefined,

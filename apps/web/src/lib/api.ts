@@ -6,6 +6,22 @@ function getApiBaseUrl(): string {
   return getNormalizedPublicEnv().apiUrl;
 }
 
+function safeApiHost(apiUrl: string): string | null {
+  try {
+    return new URL(apiUrl).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function hasJsonBody(init?: RequestInit): boolean {
+  if (init?.body == null) {
+    return false;
+  }
+  const method = (init.method ?? 'GET').toUpperCase();
+  return method !== 'GET' && method !== 'HEAD';
+}
+
 export type Service = {
   id: string;
   name: string;
@@ -116,23 +132,60 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error('Unable to load appointment services. Please try again.');
   }
 
-  const url = `${apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${apiUrl}${normalizedPath}`;
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const headers = new Headers(init?.headers);
+
+  // Avoid Content-Type on body-less GET/HEAD so browsers can skip CORS preflight
+  // for simple cross-origin requests.
+  if (hasJsonBody(init) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const isServicesRequest = /\/api\/v1\/public\/[^/]+\/services$/.test(normalizedPath);
+
+  if (isServicesRequest && typeof window !== 'undefined') {
+    console.log('[CarePoint API Debug] Request', {
+      method,
+      apiHost: safeApiHost(apiUrl),
+      path: normalizedPath,
+      frontendOrigin: window.location.origin,
+    });
+  }
 
   let response: Response;
   try {
     response = await fetch(url, {
       ...init,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(init?.headers ?? {}),
-      },
+      method,
+      headers,
       cache: 'no-store',
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[api] Network request failed', { url, error });
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (isServicesRequest) {
+      console.error('[CarePoint API Debug] Services fetch failed', {
+        errorName,
+        errorMessage,
+      });
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.error('[api] Network request failed', {
+        apiHost: safeApiHost(apiUrl),
+        path: normalizedPath,
+        errorName,
+        errorMessage,
+      });
     }
     throw new Error('Unable to load appointment services. Please try again.');
+  }
+
+  if (isServicesRequest) {
+    console.log('[CarePoint API Debug] Services response', {
+      ok: response.ok,
+      status: response.status,
+    });
   }
 
   const body = (await response.json().catch(() => ({}))) as {
@@ -145,7 +198,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ? body.message.join(', ')
       : body.message || body.error || `Request failed (${response.status})`;
     if (process.env.NODE_ENV !== 'production') {
-      console.error('[api] Upstream error', { url, status: response.status, message });
+      console.error('[api] Upstream error', {
+        apiHost: safeApiHost(apiUrl),
+        path: normalizedPath,
+        status: response.status,
+        message,
+      });
     }
     throw new Error(message);
   }
